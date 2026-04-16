@@ -168,7 +168,7 @@ struct LayoutSystemDemo: View {
                             Color.blue
                             Text("前景文本")
                                 .foregroundColor(.white)
-                                .font(.largeTitle)
+                                .font(.title)
                         }
                         .frame(height: 100)
                         .cornerRadius(8)
@@ -295,55 +295,37 @@ struct LayoutSystemDemo: View {
                 .background(.yellow.opacity(0.1))
                 .cornerRadius(10)
                 
-                //  容器布局
+                //  网格布局
                 VStack {
-                    Text("5. 容器布局")
+                    Text("5. 网格布局")
                         .font(.headline)
                         .fontWeight(.semibold)
                     
-                    //  ScrollView
-                    VStack(spacing: 10) {
-                        Text("ScrollView - 水平滚动")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                        ScrollView(.horizontal, showsIndicators: true) {
-                            HStack(spacing: 15) {
-                                ForEach(1..<10) {
-                                    Rectangle()
-                                        .fill(Color(hue: Double($0)/10, saturation: 0.8, brightness: 0.8))
-                                        .frame(width: 100, height: 100)
-                                        .overlay(
-                                            Text("\($0)")
-                                                .foregroundColor(.white)
-                                                .font(.headline)
-                                        )
-                                }
-                            }
-                            .padding()
-                        }
-                        .frame(height: 150)
-                        .background(.gray.opacity(0.1))
-                        .cornerRadius(8)
-                    }
+                    //  定义网格列
+                    let columns = [
+                        GridItem(.flexible()),
+                        GridItem(.flexible()),
+                        GridItem(.flexible())
+                    ]
                     
-                    //  LazyVStack
+                    //  垂直网格
                     VStack(spacing: 10) {
-                        Text("LazyVStack - 延迟加载")
+                        Text("垂直网格")
                             .font(.subheadline)
                             .fontWeight(.semibold)
-                        ScrollView {
-                            LazyVStack(spacing: 10) {
-                                ForEach(1..<20) {
-                                    Text("项目 \($0)")
-                                        .padding()
-                                        .background(Color(hue: Double($0)/20, saturation: 0.8, brightness: 0.8))
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
+                        LazyVGrid(columns: columns, spacing: 10) {
+                            ForEach(1..<10) { index in
+                                Rectangle()
+                                    .fill(Color(hue: Double(index)/10, saturation: 0.8, brightness: 0.8))
+                                    .frame(height: 60)
+                                    .overlay(
+                                        Text("\(index)")
+                                            .foregroundColor(.white)
+                                            .font(.headline)
+                                    )
                             }
-                            .padding()
                         }
-                        .frame(height: 200)
+                        .padding()
                         .background(.gray.opacity(0.1))
                         .cornerRadius(8)
                     }
@@ -352,25 +334,100 @@ struct LayoutSystemDemo: View {
                 .background(.purple.opacity(0.1))
                 .cornerRadius(10)
                 
-                //  实战案例导航
+                //  列表和表单
                 VStack {
-                    Text("6. 实战案例")
+                    Text("6. 列表和表单")
                         .font(.headline)
                         .fontWeight(.semibold)
                     
-                    NavigationLink(destination: LoginView()) {
-                        Text("登录页面")
-                            .foregroundColor(.blue)
-                            .underline()
+                    //  List示例
+                    VStack(spacing: 10) {
+                        Text("List示例")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        VStack {
+                            Text("项目 1")
+                            Divider()
+                            Text("项目 2")
+                            Divider()
+                            Text("项目 3")
+                        }
+                        .padding()
+                        .background(.gray.opacity(0.1))
+                        .cornerRadius(8)
                     }
-                    .padding()
                     
-                    NavigationLink(destination: ProductDetailView()) {
-                        Text("产品详情页")
-                            .foregroundColor(.blue)
-                            .underline()
+                    //  分隔线
+                    VStack(spacing: 10) {
+                        Text("Divider分隔线")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        VStack {
+                            Text("顶部")
+                            Divider()
+                            Text("底部")
+                        }
+                        .padding()
+                        .background(.gray.opacity(0.1))
+                        .cornerRadius(8)
                     }
-                    .padding()
+                }
+                .padding()
+                .background(.orange.opacity(0.1))
+                .cornerRadius(10)
+                
+                //  GeometryReader
+                VStack {
+                    Text("7. GeometryReader")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    VStack(spacing: 10) {
+                        Text("获取父视图尺寸")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        GeometryReader { geometry in
+                            VStack {
+                                Text("宽度: \(Int(geometry.size.width))")
+                                Text("高度: \(Int(geometry.size.height))")
+                            }
+                            .frame(width: geometry.size.width, height: 150)
+                            .background(Color.gray.opacity(0.1))
+                        }
+                        .frame(height: 150)
+                    }
+                }
+                .padding()
+                .background(.teal.opacity(0.1))
+                .cornerRadius(10)
+                
+                //  实战案例直接展示
+                VStack {
+                    Text("8. 实战案例")
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                    
+                    //  登录页面直接展示
+                    VStack(spacing: 10) {
+                        Text("登录页面（预览）")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        LoginViewPreview()
+                            .frame(height: 300)
+                            .cornerRadius(12)
+                            .shadow(radius: 4)
+                    }
+                    
+                    //  产品详情页直接展示
+                    VStack(spacing: 10) {
+                        Text("产品详情页（预览）")
+                            .font(.subheadline)
+                            .fontWeight(.semibold)
+                        ProductDetailViewPreview()
+                            .frame(height: 300)
+                            .cornerRadius(12)
+                            .shadow(radius: 4)
+                    }
                 }
                 .padding()
                 .background(.red.opacity(0.1))
@@ -381,8 +438,8 @@ struct LayoutSystemDemo: View {
     }
 }
 
-/// 登录页面视图
-struct LoginView: View {
+/// 登录页面预览
+struct LoginViewPreview: View {
     // 状态变量
     @State private var username = ""
     @State private var password = ""
@@ -396,27 +453,27 @@ struct LoginView: View {
                 startPoint: .top,
                 endPoint: .bottom
             )
-            .ignoresSafeArea()
             
-            VStack(spacing: 24) {
+            VStack(spacing: 12) {
                 // 应用图标和标题
-                VStack(spacing: 12) {
+                VStack(spacing: 6) {
                     Image(systemName: "lock.fill")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 80, height: 80)
+                        .frame(width: 40, height: 40)
                         .foregroundColor(.blue)
                     
                     Text("欢迎回来")
-                        .font(.largeTitle)
+                        .font(.headline)
                         .fontWeight(.bold)
                     
                     Text("请登录以继续")
+                        .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 
                 // 输入区域
-                VStack(spacing: 16) {
+                VStack(spacing: 8) {
                     // 用户名输入框
                     TextField(
                         "用户名",
@@ -424,7 +481,7 @@ struct LoginView: View {
                         prompt: Text("请输入用户名")
                     )
                     .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 8)
                     
                     // 密码输入框
                     ZStack(alignment: .trailing) {
@@ -447,52 +504,30 @@ struct LoginView: View {
                         }) {
                             Image(systemName: showPassword ? "eye.slash.fill" : "eye.fill")
                                 .foregroundColor(.secondary)
-                                .padding(.trailing, 16)
+                                .font(.caption)
+                                .padding(.trailing, 8)
                         }
                     }
                     .textFieldStyle(.roundedBorder)
-                    .padding(.horizontal)
+                    .padding(.horizontal, 8)
                     
-                    // 忘记密码
-                    HStack {
-                        Spacer()
-                        Button("忘记密码?") {
-                            print("忘记密码")
-                        }
-                        .foregroundColor(.blue)
-                        .padding(.trailing)
+                    // 登录按钮
+                    Button("登录") {
+                        print("登录")
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                    .padding(.horizontal)
+                    .frame(maxWidth: .infinity)
                 }
-                
-                // 登录按钮
-                Button("登录") {
-                    print("登录")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
-                .padding(.horizontal)
-                .frame(maxWidth: .infinity)
-                
-                // 注册链接
-                HStack {
-                    Text("还没有账号?")
-                    Button("立即注册") {
-                        print("注册")
-                    }
-                    .foregroundColor(.blue)
-                }
-                
-                Spacer()
             }
-            .padding(.top, 60)
+            .padding(.top, 20)
         }
-        .navigationTitle("登录")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 
-/// 产品详情页视图
-struct ProductDetailView: View {
+/// 产品详情页预览
+struct ProductDetailViewPreview: View {
     // 状态变量
     @State private var selectedColor = "红色"
     @State private var selectedSize = "M"
@@ -501,54 +536,50 @@ struct ProductDetailView: View {
     // 产品数据
     let productName = "SwiftUI 高级教程"
     let productPrice = "¥99.00"
-    let productDescription = "本教程涵盖了 SwiftUI 的高级特性，包括动画、手势、布局和性能优化等内容。通过实际项目案例，帮助你掌握 SwiftUI 的核心概念和最佳实践。"
     let colors = ["红色", "蓝色", "黑色"]
     let sizes = ["S", "M", "L", "XL"]
     
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: 8) {
                 // 产品图片
                 ZStack {
                     Color.gray.opacity(0.1)
-                        .frame(height: 300)
+                        .frame(height: 100)
                     
                     Image(systemName: "book.fill")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
-                        .frame(width: 150, height: 150)
+                        .frame(width: 50, height: 50)
                         .foregroundColor(.blue)
                 }
                 
                 // 产品信息
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(productName)
-                            .font(.title)
+                            .font(.subheadline)
                             .fontWeight(.bold)
                         Spacer()
                         Text(productPrice)
-                            .font(.title)
+                            .font(.subheadline)
                             .fontWeight(.bold)
                             .foregroundColor(.red)
                     }
                     
-                    // 产品描述
-                    Text(productDescription)
-                        .foregroundColor(.secondary)
-                        .lineLimit(nil)
-                    
                     // 颜色选择
                     Text("颜色")
-                        .font(.headline)
-                    HStack(spacing: 10) {
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    HStack(spacing: 5) {
                         ForEach(colors, id: \.self) {
                             color in
                             Button(action: {
                                 selectedColor = color
                             }) {
                                 Text(color)
-                                    .padding(8)
+                                    .font(.caption)
+                                    .padding(4)
                                     .background(selectedColor == color ? Color.blue : Color.gray.opacity(0.1))
                                     .foregroundColor(selectedColor == color ? .white : .primary)
                                     .cornerRadius(4)
@@ -558,15 +589,17 @@ struct ProductDetailView: View {
                     
                     // 尺寸选择
                     Text("尺寸")
-                        .font(.headline)
-                    HStack(spacing: 10) {
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                    HStack(spacing: 5) {
                         ForEach(sizes, id: \.self) {
                             size in
                             Button(action: {
                                 selectedSize = size
                             }) {
                                 Text(size)
-                                    .padding(8)
+                                    .font(.caption)
+                                    .padding(4)
                                     .background(selectedSize == size ? Color.blue : Color.gray.opacity(0.1))
                                     .foregroundColor(selectedSize == size ? .white : .primary)
                                     .cornerRadius(4)
@@ -574,46 +607,18 @@ struct ProductDetailView: View {
                         }
                     }
                     
-                    // 数量选择
-                    Text("数量")
-                        .font(.headline)
-                    HStack {
-                        Button(action: {
-                            if quantity > 1 {
-                                quantity -= 1
-                            }
-                        }) {
-                            Image(systemName: "minus.circle")
-                                .font(.system(size: 24))
-                        }
-                        
-                        Text("\(quantity)")
-                            .font(.headline)
-                            .padding(.horizontal, 20)
-                        
-                        Button(action: {
-                            quantity += 1
-                        }) {
-                            Image(systemName: "plus.circle")
-                                .font(.system(size: 24))
-                        }
+                    // 购买按钮
+                    Button("加入购物车") {
+                        print("加入购物车")
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.blue)
+                    .frame(maxWidth: .infinity)
                 }
-                .padding()
-                
-                // 购买按钮
-                Button("加入购物车") {
-                    print("加入购物车")
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.blue)
                 .padding(.horizontal)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 30)
             }
         }
-        .navigationTitle("产品详情")
-        .navigationBarTitleDisplayMode(.inline)
+        .background(Color.white)
     }
 }
 
