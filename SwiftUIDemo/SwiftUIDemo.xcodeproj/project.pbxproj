@@ -20,6 +20,17 @@
 		592D66DA281B81A700A36D99 /* CircleImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592D66D9281B81A700A36D99 /* CircleImage.swift */; };
 		592D66DC281B81BE00A36D99 /* LandmarkDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592D66DB281B81BE00A36D99 /* LandmarkDetail.swift */; };
 		592D66DE281B864D00A36D99 /* LandmarkRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592D66DD281B864D00A36D99 /* LandmarkRow.swift */; };
+		592F4DA62F911A1200FA4792 /* BasicViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592F4D9D2F911A1200FA4792 /* BasicViews.swift */; };
+		592F4DA72F911A1200FA4792 /* DeclarativeUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592F4D9B2F911A1200FA4792 /* DeclarativeUI.swift */; };
+		592F4DA82F911A1200FA4792 /* NavigationAndForms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592F4DA32F911A1200FA4792 /* NavigationAndForms.swift */; };
+		592F4DA92F911A1200FA4792 /* Introduction.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592F4D992F911A1200FA4792 /* Introduction.swift */; };
+		592F4DAA2F911A1200FA4792 /* LayoutSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592F4D9F2F911A1200FA4792 /* LayoutSystem.swift */; };
+		592F4DAB2F911A1200FA4792 /* StateManagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592F4DA12F911A1200FA4792 /* StateManagement.swift */; };
+		592F4DB22F911A3600FA4792 /* 第4章：基础布局系统.md in Resources */ = {isa = PBXBuildFile; fileRef = 592F4DAF2F911A3600FA4792 /* 第4章：基础布局系统.md */; };
+		592F4DB32F911A3600FA4792 /* 第2章：声明式 UI 基础.md in Resources */ = {isa = PBXBuildFile; fileRef = 592F4DAD2F911A3600FA4792 /* 第2章：声明式 UI 基础.md */; };
+		592F4DB42F911A3600FA4792 /* 第3章：基础视图组件.md in Resources */ = {isa = PBXBuildFile; fileRef = 592F4DAE2F911A3600FA4792 /* 第3章：基础视图组件.md */; };
+		592F4DB52F911A3600FA4792 /* 第5章：基础状态管理.md in Resources */ = {isa = PBXBuildFile; fileRef = 592F4DB02F911A3600FA4792 /* 第5章：基础状态管理.md */; };
+		592F4DB62F911A3600FA4792 /* 第1章：SwiftUI 简介与开发环境搭建.md in Resources */ = {isa = PBXBuildFile; fileRef = 592F4DAC2F911A3600FA4792 /* 第1章：SwiftUI 简介与开发环境搭建.md */; };
 		595AD907281A6A94002807EC /* SwiftUIDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 595AD906281A6A94002807EC /* SwiftUIDemoApp.swift */; };
 		595AD90B281A6A95002807EC /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 595AD90A281A6A95002807EC /* Assets.xcassets */; };
 		595AD90E281A6A95002807EC /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 595AD90D281A6A95002807EC /* Preview Assets.xcassets */; };
@@ -91,6 +102,17 @@
 		592D66D9281B81A700A36D99 /* CircleImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CircleImage.swift; sourceTree = "<group>"; };
 		592D66DB281B81BE00A36D99 /* LandmarkDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandmarkDetail.swift; sourceTree = "<group>"; };
 		592D66DD281B864D00A36D99 /* LandmarkRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LandmarkRow.swift; sourceTree = "<group>"; };
+		592F4D992F911A1200FA4792 /* Introduction.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Introduction.swift; sourceTree = "<group>"; };
+		592F4D9B2F911A1200FA4792 /* DeclarativeUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeclarativeUI.swift; sourceTree = "<group>"; };
+		592F4D9D2F911A1200FA4792 /* BasicViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BasicViews.swift; sourceTree = "<group>"; };
+		592F4D9F2F911A1200FA4792 /* LayoutSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LayoutSystem.swift; sourceTree = "<group>"; };
+		592F4DA12F911A1200FA4792 /* StateManagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StateManagement.swift; sourceTree = "<group>"; };
+		592F4DA32F911A1200FA4792 /* NavigationAndForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationAndForms.swift; sourceTree = "<group>"; };
+		592F4DAC2F911A3600FA4792 /* 第1章：SwiftUI 简介与开发环境搭建.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "第1章：SwiftUI 简介与开发环境搭建.md"; sourceTree = "<group>"; };
+		592F4DAD2F911A3600FA4792 /* 第2章：声明式 UI 基础.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "第2章：声明式 UI 基础.md"; sourceTree = "<group>"; };
+		592F4DAE2F911A3600FA4792 /* 第3章：基础视图组件.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "第3章：基础视图组件.md"; sourceTree = "<group>"; };
+		592F4DAF2F911A3600FA4792 /* 第4章：基础布局系统.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "第4章：基础布局系统.md"; sourceTree = "<group>"; };
+		592F4DB02F911A3600FA4792 /* 第5章：基础状态管理.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = "第5章：基础状态管理.md"; sourceTree = "<group>"; };
 		595AD903281A6A94002807EC /* SwiftUIDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftUIDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		595AD906281A6A94002807EC /* SwiftUIDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftUIDemoApp.swift; sourceTree = "<group>"; };
 		595AD90A281A6A95002807EC /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -260,6 +282,79 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		592F4D9A2F911A1200FA4792 /* 第1章：SwiftUI简介与开发环境搭建 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4D992F911A1200FA4792 /* Introduction.swift */,
+			);
+			path = "第1章：SwiftUI简介与开发环境搭建";
+			sourceTree = "<group>";
+		};
+		592F4D9C2F911A1200FA4792 /* 第2章：声明式UI基础 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4D9B2F911A1200FA4792 /* DeclarativeUI.swift */,
+			);
+			path = "第2章：声明式UI基础";
+			sourceTree = "<group>";
+		};
+		592F4D9E2F911A1200FA4792 /* 第3章：基础 视图组件 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4D9D2F911A1200FA4792 /* BasicViews.swift */,
+			);
+			path = "第3章：基础 视图组件";
+			sourceTree = "<group>";
+		};
+		592F4DA02F911A1200FA4792 /* 第4章：基础布局系统 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4D9F2F911A1200FA4792 /* LayoutSystem.swift */,
+			);
+			path = "第4章：基础布局系统";
+			sourceTree = "<group>";
+		};
+		592F4DA22F911A1200FA4792 /* 第5章：基础状态管理 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4DA12F911A1200FA4792 /* StateManagement.swift */,
+			);
+			path = "第5章：基础状态管理";
+			sourceTree = "<group>";
+		};
+		592F4DA42F911A1200FA4792 /* 第6章：导航与表单 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4DA32F911A1200FA4792 /* NavigationAndForms.swift */,
+			);
+			path = "第6章：导航与表单";
+			sourceTree = "<group>";
+		};
+		592F4DA52F911A1200FA4792 /* 第一阶段：SwiftUI基础入门 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4D9A2F911A1200FA4792 /* 第1章：SwiftUI简介与开发环境搭建 */,
+				592F4D9C2F911A1200FA4792 /* 第2章：声明式UI基础 */,
+				592F4D9E2F911A1200FA4792 /* 第3章：基础 视图组件 */,
+				592F4DA02F911A1200FA4792 /* 第4章：基础布局系统 */,
+				592F4DA22F911A1200FA4792 /* 第5章：基础状态管理 */,
+				592F4DA42F911A1200FA4792 /* 第6章：导航与表单 */,
+			);
+			path = "第一阶段：SwiftUI基础入门";
+			sourceTree = "<group>";
+		};
+		592F4DB12F911A3600FA4792 /* 第一阶段：SwiftUI 基础入门 */ = {
+			isa = PBXGroup;
+			children = (
+				592F4DAC2F911A3600FA4792 /* 第1章：SwiftUI 简介与开发环境搭建.md */,
+				592F4DAD2F911A3600FA4792 /* 第2章：声明式 UI 基础.md */,
+				592F4DAE2F911A3600FA4792 /* 第3章：基础视图组件.md */,
+				592F4DAF2F911A3600FA4792 /* 第4章：基础布局系统.md */,
+				592F4DB02F911A3600FA4792 /* 第5章：基础状态管理.md */,
+			);
+			path = "第一阶段：SwiftUI 基础入门";
+			sourceTree = "<group>";
+		};
 		5949BA85286ADAAD00365A5F /* View */ = {
 			isa = PBXGroup;
 			children = (
@@ -299,6 +394,8 @@
 		595AD905281A6A94002807EC /* SwiftUIDemo */ = {
 			isa = PBXGroup;
 			children = (
+				592F4DB12F911A3600FA4792 /* 第一阶段：SwiftUI 基础入门 */,
+				592F4DA52F911A1200FA4792 /* 第一阶段：SwiftUI基础入门 */,
 				595AD906281A6A94002807EC /* SwiftUIDemoApp.swift */,
 				59B6E522281A9476004ACFB8 /* SmallExampleDemo */,
 				595AD90A281A6A95002807EC /* Assets.xcassets */,
@@ -565,6 +662,11 @@
 			files = (
 				597D9E92282B5D73001014E4 /* hikeData.json in Resources */,
 				595AD90E281A6A95002807EC /* Preview Assets.xcassets in Resources */,
+				592F4DB22F911A3600FA4792 /* 第4章：基础布局系统.md in Resources */,
+				592F4DB32F911A3600FA4792 /* 第2章：声明式 UI 基础.md in Resources */,
+				592F4DB42F911A3600FA4792 /* 第3章：基础视图组件.md in Resources */,
+				592F4DB52F911A3600FA4792 /* 第5章：基础状态管理.md in Resources */,
+				592F4DB62F911A3600FA4792 /* 第1章：SwiftUI 简介与开发环境搭建.md in Resources */,
 				595AD90B281A6A95002807EC /* Assets.xcassets in Resources */,
 				592D66D6281B800500A36D99 /* landmarkData.json in Resources */,
 			);
@@ -596,6 +698,12 @@
 				591CE8B3286436EB00F185DC /* CustomControl.swift in Sources */,
 				59CE1B67282A718400219C81 /* Badge.swift in Sources */,
 				592D66D1281B7D5D00A36D99 /* Landmark.swift in Sources */,
+				592F4DA62F911A1200FA4792 /* BasicViews.swift in Sources */,
+				592F4DA72F911A1200FA4792 /* DeclarativeUI.swift in Sources */,
+				592F4DA82F911A1200FA4792 /* NavigationAndForms.swift in Sources */,
+				592F4DA92F911A1200FA4792 /* Introduction.swift in Sources */,
+				592F4DAA2F911A1200FA4792 /* LayoutSystem.swift in Sources */,
+				592F4DAB2F911A1200FA4792 /* StateManagement.swift in Sources */,
 				59FBFD65281A9F4700B7005F /* AppleMapView.swift in Sources */,
 				592D66DA281B81A700A36D99 /* CircleImage.swift in Sources */,
 				592D66CB281B7A0D00A36D99 /*  LandmarksAppConentView.swift in Sources */,
@@ -792,10 +900,11 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SwiftUIDemo/Preview Content\"";
-				DEVELOPMENT_TEAM = Q94Y4N4RXK;
+				DEVELOPMENT_TEAM = E3DPJ4DW7A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -808,8 +917,9 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = riyu.test.SwiftUIDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = www.test.demo.swiftUI.swiftUIDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -824,7 +934,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SwiftUIDemo/Preview Content\"";
-				DEVELOPMENT_TEAM = Q94Y4N4RXK;
+				DEVELOPMENT_TEAM = E3DPJ4DW7A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -837,7 +947,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = riyu.test.SwiftUIDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = www.test.demo.swiftUI.swiftUIDemo;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
