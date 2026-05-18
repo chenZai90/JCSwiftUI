@@ -1,0 +1,387 @@
+# 第5章：错误处理与恢复
+
+## 学习目标
+
+完成本章学习后，你将能够：
+- 理解Combine中的错误处理机制
+- 掌握try系列操作符的使用
+- 学会使用catch和replaceError处理错误
+- 理解retry操作符的重试策略
+- 掌握错误类型转换
+
+## 5.1 Combine中的错误模型
+
+Combine使用泛型错误类型，每个发布者都有明确的Failure类型：
+
+```swift
+// 可能产生错误的发布者
+Publisher<Output, Error>
+
+// 永远不会产生错误的发布者
+Publisher<Output, Never>
+```
+
+## 5.2 抛出错误的操作符
+
+### tryMap
+
+```swift
+let numbers = ["1", "2", "3", "invalid", "5"].publisher
+
+numbers
+    .tryMap { string -> Int in
+        guard let number = Int(string) else {
+            throw ConversionError.invalidNumber(string)
+        }
+        return number
+    }
+    .sink(
+        receiveCompletion: { completion in
+            if case .failure(let error) = completion {
+                print("错误: \(error)")
+            }
+        },
+        receiveValue: { number in
+            print("数字: \(number)")
+        }
+    )
+```
+
+### tryFilter、tryReduce等
+
+```swift
+// tryFilter
+numbers
+    .tryFilter { string in
+        if string == "error" {
+            throw FilterError.invalidValue
+        }
+        return !string.isEmpty
+    }
+
+// tryReduce
+numbers
+    .tryReduce(0) { total, string in
+        guard let number = Int(string) else {
+            throw ConversionError.invalidNumber(string)
+        }
+        return total + number
+    }
+```
+
+## 5.3 错误处理操作符
+
+### catch
+
+catch可以捕获错误并返回一个新的发布者：
+
+```swift
+let subject = PassthroughSubject<String, Error>()
+
+subject
+    .catch { error -> AnyPublisher<String, Never> in
+        print("捕获错误: \(error)")
+        return Just("默认值")
+            .eraseToAnyPublisher()
+    }
+    .sink { value in
+        print("收到: \(value)")
+    }
+
+subject.send("正常数据")
+subject.send(completion: .failure(NetworkError.timeout))
+```
+
+### replaceError
+
+replaceError会在错误发生时用默认值替换：
+
+```swift
+subject
+    .replaceError(with: "错误时的默认值")
+    .sink { value in
+        print("收到: \(value)")
+    }
+```
+
+### mapError
+
+mapError可以转换错误类型：
+
+```swift
+enum NetworkError: Error {
+    case timeout
+    case invalidResponse
+}
+
+enum AppError: Error {
+    case network(NetworkError)
+    case unknown
+}
+
+networkPublisher
+    .mapError { error -> AppError in
+        return .network(error)
+    }
+    .sink(
+        receiveCompletion: { completion in
+            if case .failure(let appError) = completion {
+                handleAppError(appError)
+            }
+        },
+        receiveValue: { value in
+            print("值: \(value)")
+        }
+    )
+```
+
+### assertNoFailure
+
+assertNoFailure在调试模式下断言不会产生错误：
+
+```swift
+publisher
+    .assertNoFailure("不应该产生错误")
+    .sink { value in
+        print("值: \(value)")
+    }
+```
+
+## 5.4 重试机制
+
+### retry(n)
+
+```swift
+var attemptCount = 0
+
+let flakyPublisher = Future<String, Error> { promise in
+    attemptCount += 1
+    if attemptCount < 3 {
+        promise(.failure(NetworkError.timeout))
+    } else {
+        promise(.success("成功"))
+    }
+}
+
+flakyPublisher
+    .retry(3) // 最多重试3次
+    .sink(
+        receiveCompletion: { completion in
+            print("最终完成: \(completion)")
+        },
+        receiveValue: { value in
+            print("最终值: \(value)")
+        }
+    )
+```
+
+### 带延迟的重试
+
+```swift
+func fetchDataWithRetry() -> AnyPublisher<String, Error> {
+    return fetchData()
+        .catch { error -> AnyPublisher<String, Error> in
+            // 延迟1秒后重试
+            return Just(())
+                .delay(for: .seconds(1), scheduler: DispatchQueue.main)
+                .flatMap { _ in fetchData() }
+                .eraseToAnyPublisher()
+        }
+        .retry(3)
+        .eraseToAnyPublisher()
+}
+```
+
+### 指数退避重试策略
+
+```swift
+func exponentialBackoffRetry(
+    maxRetries: Int,
+    initialDelay: TimeInterval = 1.0
+) -> AnyPublisher<String, Error> {
+    func attempt(remainingRetries: Int, delay: TimeInterval) -> AnyPublisher<String, Error> {
+        return fetchData()
+            .catch { error -> AnyPublisher<String, Error> in
+                guard remainingRetries > 0 else {
+                    return Fail(error: error).eraseToAnyPublisher()
+                }
+                return Just(())
+                    .delay(for: .seconds(delay), scheduler: DispatchQueue.main)
+                    .flatMap { _ in
+                        attempt(
+                            remainingRetries: remainingRetries - 1,
+                            delay: delay * 2
+                        )
+                    }
+                    .eraseToAnyPublisher()
+            }
+            .eraseToAnyPublisher()
+    }
+    return attempt(remainingRetries: maxRetries, delay: initialDelay)
+}
+```
+
+## 5.5 将错误转换为Never
+
+### 使用assertNoFailure
+
+```swift
+// 只在调试时有效
+publisher
+    .assertNoFailure()
+    .sink { value in
+        print(value)
+    }
+```
+
+### 使用replaceError
+
+```swift
+// 永远不会失败的发布者
+publisher
+    .replaceError(with: "默认值")
+    .sink { value in
+        print(value)
+    }
+```
+
+### 使用catch返回Just
+
+```swift
+publisher
+    .catch { _ in Just("默认值") }
+    .sink { value in
+        print(value)
+    }
+```
+
+## 5.6 错误处理最佳实践
+
+### 1. 定义明确的错误类型
+
+```swift
+enum APIError: LocalizedError {
+    case invalidURL
+    case networkError(Error)
+    case invalidResponse
+    case decodingError(Error)
+    case serverError(Int, String)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "无效的URL"
+        case .networkError(let error):
+            return "网络错误: \(error.localizedDescription)"
+        case .invalidResponse:
+            return "无效的响应"
+        case .decodingError(let error):
+            return "解码错误: \(error.localizedDescription)"
+        case .serverError(let code, let message):
+            return "服务器错误 \(code): \(message)"
+        }
+    }
+}
+```
+
+### 2. 在合适的层级处理错误
+
+```swift
+// ViewModel层处理业务错误
+func fetchData() {
+    service.fetchData()
+        .mapError { APIError.networkError($0) }
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                if case .failure(let error) = completion {
+                    self?.errorMessage = error.localizedDescription
+                }
+            },
+            receiveValue: { [weak self] data in
+                self?.data = data
+            }
+        )
+        .store(in: &cancellables)
+}
+```
+
+### 3. 提供降级方案
+
+```swift
+service.fetchData()
+    .catch { error -> AnyPublisher<Data, Never> in
+        // 尝试从缓存加载
+        return loadFromCache()
+            .catch { _ in Just(defaultData).eraseToAnyPublisher() }
+            .eraseToAnyPublisher()
+    }
+    .sink { data in
+        print("使用数据: \(data)")
+    }
+    .store(in: &cancellables)
+```
+
+## 5.7 实战示例：网络请求错误处理
+
+```swift
+class DataService {
+    func fetchData(from url: URL) -> AnyPublisher<Data, APIError> {
+        return URLSession.shared.dataTaskPublisher(for: url)
+            .mapError { APIError.networkError($0) }
+            .tryMap { data, response in
+                guard let httpResponse = response as? HTTPURLResponse else {
+                    throw APIError.invalidResponse
+                }
+                
+                guard (200...299).contains(httpResponse.statusCode) else {
+                    throw APIError.serverError(httpResponse.statusCode, "请求失败")
+                }
+                
+                return data
+            }
+            .mapError { error -> APIError in
+                if let apiError = error as? APIError {
+                    return apiError
+                }
+                return APIError.decodingError(error)
+            }
+            .eraseToAnyPublisher()
+    }
+}
+
+class ViewModel: ObservableObject {
+    @Published var data: Data?
+    @Published var errorMessage: String?
+    @Published var isLoading = false
+    
+    private let service = DataService()
+    private var cancellables = Set<AnyCancellable>()
+    
+    func loadData() {
+        isLoading = true
+        errorMessage = nil
+        
+        service.fetchData(from: apiURL)
+            .retry(2) // 失败后重试2次
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { [weak self] data in
+                    self?.data = data
+                }
+            )
+            .store(in: &cancellables)
+    }
+}
+```
+
+## 总结
+
+本章详细介绍了Combine中的错误处理机制，包括try系列操作符、catch、replaceError、retry等错误处理操作符，以及错误处理的最佳实践。
+
+下一章我们将学习多线程与调度器的使用。

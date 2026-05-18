@@ -1,0 +1,429 @@
+# 第7章：测试与调试
+
+## 学习目标
+
+完成本章学习后，你将能够：
+- 掌握Combine代码的测试技巧
+- 学会使用print()和handleEvents调试
+- 理解XCTestCase中测试Combine的方法
+- 掌握XCTestExpectation的使用
+- 避免常见的调试陷阱
+
+## 7.1 调试技巧
+
+### print()操作符
+
+print()是最简便的调试工具：
+
+```swift
+publisher
+    .print("调试标签")
+    .sink { value in
+        print("处理值: \(value)")
+    }
+    .store(in: &cancellables)
+```
+
+输出示例：
+```
+调试标签: receive subscription: (PassthroughSubject)
+调试标签: request unlimited
+调试标签: receive value: (Hello)
+调试标签: receive finished
+```
+
+### handleEvents操作符
+
+handleEvents可以观察所有事件而不影响数据：
+
+```swift
+publisher
+    .handleEvents(
+        receiveSubscription: { subscription in
+            print("收到订阅: \(subscription)")
+        },
+        receiveOutput: { value in
+            print("收到值: \(value)")
+        },
+        receiveCompletion: { completion in
+            print("完成: \(completion)")
+        },
+        receiveCancel: {
+            print("订阅被取消")
+        },
+        receiveRequest: { demand in
+            print("请求: \(demand)")
+        }
+    )
+    .sink { value in
+        print("最终处理: \(value)")
+    }
+    .store(in: &cancellables)
+```
+
+### breakpoint操作符
+
+在调试时暂停执行：
+
+```swift
+publisher
+    .breakpoint(
+        receiveSubscription: { _ in false },
+        receiveOutput: { value in
+            // 当值满足条件时暂停
+            return value < 0
+        },
+        receiveCompletion: { _ in false }
+    )
+    .sink { value in
+        print(value)
+    }
+    .store(in: &cancellables)
+```
+
+### breakpointOnError
+
+```swift
+publisher
+    .breakpointOnError()
+    .sink(
+        receiveCompletion: { completion in
+            print(completion)
+        },
+        receiveValue: { value in
+            print(value)
+        }
+    )
+    .store(in: &cancellables)
+```
+
+## 7.2 测试Combine代码
+
+### 测试简单发布者
+
+```swift
+import XCTest
+import Combine
+
+class CombineTests: XCTestCase {
+    private var cancellables = Set<AnyCancellable>()
+    
+    func testJustPublisher() {
+        let expectation = XCTestExpectation(description: "Just发布者")
+        let expectedValue = "Hello"
+        
+        Just(expectedValue)
+            .sink { value in
+                XCTAssertEqual(value, expectedValue)
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+}
+```
+
+### 测试错误
+
+```swift
+func testErrorPublisher() {
+    let expectation = XCTestExpectation(description: "错误测试")
+    let testError = TestError.somethingWentWrong
+    
+    Fail<String, TestError>(error: testError)
+        .sink(
+            receiveCompletion: { completion in
+                if case .failure(let error) = completion {
+                    XCTAssertEqual(error, testError)
+                    expectation.fulfill()
+                }
+            },
+            receiveValue: { _ in
+                XCTFail("不应该收到值")
+            }
+        )
+        .store(in: &cancellables)
+    
+    wait(for: [expectation], timeout: 1.0)
+}
+```
+
+### 使用XCTestExpectation测试异步代码
+
+```swift
+func testAsyncPublisher() {
+    let expectation = XCTestExpectation(description: "异步测试")
+    let expectedValue = "Result"
+    
+    // 模拟异步操作
+    let publisher = Future<String, Never> { promise in
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
+            promise(.success(expectedValue))
+        }
+    }
+    
+    publisher
+        .sink { value in
+            XCTAssertEqual(value, expectedValue)
+            expectation.fulfill()
+        }
+        .store(in: &cancellables)
+    
+    wait(for: [expectation], timeout: 1.0)
+}
+```
+
+### 测试多个值
+
+```swift
+func testSequencePublisher() {
+    let expectation = XCTestExpectation(description: "序列测试")
+    let expectedValues = [1, 2, 3]
+    var receivedValues: [Int] = []
+    
+    [1, 2, 3].publisher
+        .sink(
+            receiveCompletion: { completion in
+                if case .finished = completion {
+                    XCTAssertEqual(receivedValues, expectedValues)
+                    expectation.fulfill()
+                }
+            },
+            receiveValue: { value in
+                receivedValues.append(value)
+            }
+        )
+        .store(in: &cancellables)
+    
+    wait(for: [expectation], timeout: 1.0)
+}
+```
+
+## 7.3 测试操作符
+
+### 测试map
+
+```swift
+func testMapOperator() {
+    let expectation = XCTestExpectation(description: "map测试")
+    let input = [1, 2, 3]
+    let expectedOutput = [2, 4, 6]
+    var receivedValues: [Int] = []
+    
+    input.publisher
+        .map { $0 * 2 }
+        .sink(
+            receiveCompletion: { _ in
+                XCTAssertEqual(receivedValues, expectedOutput)
+                expectation.fulfill()
+            },
+            receiveValue: { value in
+                receivedValues.append(value)
+            }
+        )
+        .store(in: &cancellables)
+    
+    wait(for: [expectation], timeout: 1.0)
+}
+```
+
+### 测试combineLatest
+
+```swift
+func testCombineLatest() {
+    let expectation = XCTestExpectation(description: "combineLatest测试")
+    let subject1 = PassthroughSubject<String, Never>()
+    let subject2 = PassthroughSubject<Int, Never>()
+    var receivedValues: [(String, Int)] = []
+    
+    subject1
+        .combineLatest(subject2)
+        .sink(
+            receiveCompletion: { _ in
+                expectation.fulfill()
+            },
+            receiveValue: { value in
+                receivedValues.append(value)
+            }
+        )
+        .store(in: &cancellables)
+    
+    // 发送值
+    subject1.send("A")
+    subject2.send(1) // 应该收到 ("A", 1)
+    subject1.send("B") // 应该收到 ("B", 1)
+    
+    subject1.send(completion: .finished)
+    
+    wait(for: [expectation], timeout: 1.0)
+    XCTAssertEqual(receivedValues.count, 2)
+}
+```
+
+## 7.4 测试ViewModel
+
+```swift
+class ViewModelTests: XCTestCase {
+    var viewModel: TestViewModel!
+    var mockService: MockService!
+    var cancellables = Set<AnyCancellable>()
+    
+    override func setUp() {
+        super.setUp()
+        mockService = MockService()
+        viewModel = TestViewModel(service: mockService)
+    }
+    
+    override func tearDown() {
+        viewModel = nil
+        mockService = nil
+        cancellables.removeAll()
+        super.tearDown()
+    }
+    
+    func testDataLoading() {
+        let expectation = XCTestExpectation(description: "数据加载")
+        let expectedData = [Item(id: 1, name: "Test")]
+        
+        // 设置mock数据
+        mockService.mockData = Just(expectedData)
+            .setFailureType(to: Error.self)
+            .eraseToAnyPublisher()
+        
+        // 观察viewModel变化
+        viewModel.$data
+            .dropFirst() // 跳过初始值
+            .sink { data in
+                XCTAssertEqual(data, expectedData)
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
+        
+        viewModel.loadData()
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+    
+    func testErrorHandling() {
+        let expectation = XCTestExpectation(description: "错误处理")
+        let testError = TestError.networkError
+        
+        mockService.mockData = Fail(error: testError)
+            .eraseToAnyPublisher()
+        
+        viewModel.$errorMessage
+            .dropFirst()
+            .sink { errorMessage in
+                XCTAssertNotNil(errorMessage)
+                expectation.fulfill()
+            }
+            .store(in: &cancellables)
+        
+        viewModel.loadData()
+        
+        wait(for: [expectation], timeout: 1.0)
+    }
+}
+```
+
+## 7.5 测试工具类
+
+### TestScheduler
+
+```swift
+import Combine
+
+class TestScheduler<S: Scheduler>: Scheduler {
+    typealias SchedulerTimeType = S.SchedulerTimeType
+    typealias SchedulerOptions = S.SchedulerOptions
+    
+    private let wrapped: S
+    private(set) var scheduledActions: [(date: SchedulerTimeType, action: () -> Void)] = []
+    
+    init(wrapping wrapped: S) {
+        self.wrapped = wrapped
+    }
+    
+    var now: SchedulerTimeType { wrapped.now }
+    var minimumTolerance: S.SchedulerTimeType.Stride { wrapped.minimumTolerance }
+    
+    func schedule(
+        after date: SchedulerTimeType,
+        tolerance: S.SchedulerTimeType.Stride,
+        options: S.SchedulerOptions?,
+        _ action: @escaping () -> Void
+    ) {
+        scheduledActions.append((date, action))
+    }
+    
+    func schedule(
+        options: S.SchedulerOptions?,
+        _ action: @escaping () -> Void
+    ) {
+        schedule(after: now, tolerance: minimumTolerance, options: options, action)
+    }
+    
+    func schedule(
+        after date: SchedulerTimeType,
+        interval: S.SchedulerTimeType.Stride,
+        tolerance: S.SchedulerTimeType.Stride,
+        options: S.SchedulerOptions?,
+        _ action: @escaping () -> Void
+    ) -> Cancellable {
+        // 实现重复调度
+        return AnyCancellable {}
+    }
+    
+    func fastForward(to date: SchedulerTimeType) {
+        let actionsToRun = scheduledActions.filter { $0.date <= date }
+        for action in actionsToRun {
+            action.action()
+        }
+        scheduledActions.removeAll { $0.date <= date }
+    }
+}
+```
+
+## 7.6 常见调试问题
+
+### 问题1：订阅不触发
+
+**可能原因**：没有持有AnyCancellable
+**解决**：使用.store(in:)
+
+```swift
+// ❌ 错误：订阅立即取消
+publisher.sink { value in
+    print(value)
+}
+
+// ✅ 正确：持有订阅
+publisher.sink { value in
+    print(value)
+}.store(in: &cancellables)
+```
+
+### 问题2：重复订阅
+
+**可能原因**：在View的body中订阅
+**解决**：在onAppear中或ViewModel中订阅
+
+### 问题3：值不更新
+
+**可能原因**：线程问题
+**解决**：检查receive(on:)
+
+## 7.7 最佳实践
+
+1. **使用print()快速调试**：简单有效
+2. **使用handleEvents深入调试**：观察所有事件
+3. **编写单元测试**：保证代码质量
+4. **使用XCTestExpectation**：测试异步代码
+5. **Mock依赖**：隔离测试
+
+## 总结
+
+本章详细介绍了Combine的调试和测试技巧，包括print()、handleEvents等调试操作符，以及使用XCTest进行单元测试的方法。
+
+下一章我们将学习Combine的架构模式。

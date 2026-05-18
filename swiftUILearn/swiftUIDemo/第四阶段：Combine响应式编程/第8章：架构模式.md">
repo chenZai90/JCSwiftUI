@@ -1,0 +1,388 @@
+# 第8章：架构模式
+
+## 学习目标
+
+完成本章学习后，你将能够：
+- 理解MVVM与Combine的结合
+- 掌握Repository模式
+- 学会使用State Machine管理复杂状态
+- 理解单向数据流
+- 构建可测试、可维护的架构
+
+## 8.1 MVVM + Combine
+
+### 架构概述
+
+```
+View → ViewModel → Model
+  ↓       ↓
+  UI     业务逻辑
+```
+
+### ViewModel示例
+
+```swift
+import Combine
+import SwiftUI
+
+class LoginViewModel: ObservableObject {
+    // 输入
+    @Published var email = ""
+    @Published var password = ""
+    
+    // 输出
+    @Published var isLoginEnabled = false
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    @Published var isLoggedIn = false
+    
+    private let authService: AuthServiceProtocol
+    private var cancellables = Set<AnyCancellable>()
+    
+    init(authService: AuthServiceProtocol = AuthService.shared) {
+        self.authService = authService
+        setupBindings()
+    }
+    
+    private func setupBindings() {
+        // 表单验证
+        Publishers.CombineLatest($email, $password)
+            .map { email, password in
+                !email.isEmpty &&
+                email.contains("@") &&
+                password.count >= 6
+            }
+            .assign(to: \.isLoginEnabled, on: self)
+            .store(in: &cancellables)
+    }
+    
+    func login() {
+        isLoading = true
+        errorMessage = nil
+        
+        authService.login(email: email, password: password)
+            .receive(on: DispatchQueue.main)
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { [weak self] user in
+                    self?.isLoggedIn = true
+                }
+            )
+            .store(in: &cancellables)
+    }
+}
+```
+
+### View示例
+
+```swift
+struct LoginView: View {
+    @StateObject private var viewModel = LoginViewModel()
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            TextField("邮箱", text: $viewModel.email)
+                .textFieldStyle(.roundedBorder)
+            
+            SecureField("密码", text: $viewModel.password)
+                .textFieldStyle(.roundedBorder)
+            
+            if let error = viewModel.errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+            }
+            
+            Button(action: viewModel.login) {
+                if viewModel.isLoading {
+                    ProgressView()
+                } else {
+                    Text("登录")
+                }
+            }
+            .disabled(!viewModel.isLoginEnabled)
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .navigationDestination(isPresented: $viewModel.isLoggedIn) {
+            HomeView()
+        }
+    }
+}
+```
+
+## 8.2 Repository模式
+
+### Repository接口
+
+```swift
+protocol UserRepositoryProtocol {
+    func fetchUser(id: String) -> AnyPublisher<User, Error>
+    func updateUser(_ user: User) -> AnyPublisher<Void, Error>
+}
+
+class UserRepository: UserRepositoryProtocol {
+    private let remoteAPI: RemoteAPIProtocol
+    private let localCache: LocalCacheProtocol
+    
+    init(
+        remoteAPI: RemoteAPIProtocol = RemoteAPI.shared,
+        localCache: LocalCacheProtocol = LocalCache.shared
+    ) {
+        self.remoteAPI = remoteAPI
+        self.localCache = localCache
+    }
+    
+    func fetchUser(id: String) -> AnyPublisher<User, Error> {
+        // 策略：先返回缓存，同时更新
+        let cachePublisher = localCache.fetchUser(id: id)
+            .catch { _ in Empty<User, Error>() }
+        
+        let remotePublisher = remoteAPI.fetchUser(id: id)
+            .handleEvents(receiveOutput: { user in
+                try? localCache.saveUser(user)
+            })
+        
+        return cachePublisher
+            .merge(with: remotePublisher)
+            .eraseToAnyPublisher()
+    }
+    
+    func updateUser(_ user: User) -> AnyPublisher<Void, Error> {
+        return remoteAPI.updateUser(user)
+            .handleEvents(receiveOutput: { _ in
+                try? localCache.saveUser(user)
+            })
+            .eraseToAnyPublisher()
+    }
+}
+```
+
+## 8.3 状态机模式
+
+### 状态定义
+
+```swift
+enum AppState: Equatable {
+    case idle
+    case loading
+    case loaded([Item])
+    case error(Error)
+    
+    static func == (lhs: AppState, rhs: AppState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.loading, .loading):
+            return true
+        case (.loaded(let lhsItems), .loaded(let rhsItems)):
+            return lhsItems == rhsItems
+        case (.error, .error):
+            return true
+        default:
+            return false
+        }
+    }
+}
+
+enum AppAction {
+    case load
+    case receiveItems([Item])
+    case receiveError(Error)
+}
+```
+
+### 状态机实现
+
+```swift
+class StateMachine<State, Action>: ObservableObject {
+    @Published private(set) var state: State
+    
+    private let reducer: (inout State, Action) -> Void
+    private var cancellables = Set<AnyCancellable>()
+    
+    init(initialState: State, reducer: @escaping (inout State, Action) -> Void) {
+        self.state = initialState
+        self.reducer = reducer
+    }
+    
+    func send(_ action: Action) {
+        reducer(&state, action)
+    }
+}
+
+// 使用示例
+class ItemsViewModel: ObservableObject {
+    @Published private(set) var state: AppState = .idle
+    private let repository: ItemRepositoryProtocol
+    private var cancellables = Set<AnyCancellable>()
+    
+    init(repository: ItemRepositoryProtocol = ItemRepository()) {
+        self.repository = repository
+    }
+    
+    func send(_ action: AppAction) {
+        switch action {
+        case .load:
+            state = .loading
+            repository.fetchItems()
+                .receive(on: DispatchQueue.main)
+                .sink(
+                    receiveCompletion: { [weak self] completion in
+                        if case .failure(let error) = completion {
+                            self?.send(.receiveError(error))
+                        }
+                    },
+                    receiveValue: { [weak self] items in
+                        self?.send(.receiveItems(items))
+                    }
+                )
+                .store(in: &cancellables)
+            
+        case .receiveItems(let items):
+            state = .loaded(items)
+            
+        case .receiveError(let error):
+            state = .error(error)
+        }
+    }
+}
+```
+
+## 8.4 单向数据流
+
+### 数据流架构
+
+```
+State → View → Action → Reducer → New State
+  ↑                                    │
+  └────────────────────────────────────┘
+```
+
+### 实现示例
+
+```swift
+class Store<State, Action>: ObservableObject {
+    @Published private(set) var state: State
+    
+    private let reducer: (State, Action) async throws -> State
+    private var cancellables = Set<AnyCancellable>()
+    
+    init(
+        initialState: State,
+        reducer: @escaping (State, Action) async throws -> State
+    ) {
+        self.state = initialState
+        self.reducer = reducer
+    }
+    
+    @MainActor
+    func send(_ action: Action) async {
+        do {
+            state = try await reducer(state, action)
+        } catch {
+            print("Error: \(error)")
+        }
+    }
+}
+
+// 定义State
+struct AppState {
+    var items: [Item] = []
+    var isLoading = false
+    var errorMessage: String?
+}
+
+// 定义Action
+enum AppAction {
+    case loadItems
+    case itemsLoaded([Item])
+    case itemsFailed(Error)
+}
+
+// 定义Reducer
+func appReducer(state: AppState, action: AppAction) async throws -> AppState {
+    var newState = state
+    
+    switch action {
+    case .loadItems:
+        newState.isLoading = true
+        newState.errorMessage = nil
+        
+    case .itemsLoaded(let items):
+        newState.isLoading = false
+        newState.items = items
+        
+    case .itemsFailed(let error):
+        newState.isLoading = false
+        newState.errorMessage = error.localizedDescription
+    }
+    
+    return newState
+}
+```
+
+## 8.5 依赖注入
+
+### 协议定义
+
+```swift
+protocol NetworkServiceProtocol {
+    func fetchData(from url: URL) -> AnyPublisher<Data, Error>
+}
+
+protocol CacheServiceProtocol {
+    func save(_ data: Data, forKey key: String)
+    func fetch(forKey key: String) -> Data?
+}
+
+protocol AuthServiceProtocol {
+    func login(email: String, password: String) -> AnyPublisher<User, Error>
+}
+```
+
+### 依赖容器
+
+```swift
+class DIContainer {
+    static let shared = DIContainer()
+    
+    private init() {}
+    
+    // 服务
+    lazy var networkService: NetworkServiceProtocol = NetworkService()
+    lazy var cacheService: CacheServiceProtocol = CacheService()
+    lazy var authService: AuthServiceProtocol = AuthService(networkService: networkService)
+    
+    // Repository
+    lazy var userRepository: UserRepositoryProtocol = UserRepository(
+        remoteAPI: networkService,
+        localCache: cacheService
+    )
+    
+    // ViewModel工厂
+    func makeLoginViewModel() -> LoginViewModel {
+        return LoginViewModel(authService: authService)
+    }
+    
+    func makeItemsViewModel() -> ItemsViewModel {
+        return ItemsViewModel(repository: userRepository)
+    }
+}
+```
+
+## 8.6 最佳实践
+
+1. **单一职责**：每个组件只做一件事
+2. **依赖抽象**：依赖协议而非具体实现
+3. **单向数据流**：状态变更可预测
+4. **可测试性**：依赖注入便于测试
+5. **避免过度设计**：简单够用就好
+
+## 总结
+
+本章介绍了Combine常用的架构模式，包括MVVM、Repository、状态机、单向数据流等。选择合适的架构模式可以让代码更易维护、更易测试。
+
+下一章我们将通过一个实战项目来综合运用这些知识。

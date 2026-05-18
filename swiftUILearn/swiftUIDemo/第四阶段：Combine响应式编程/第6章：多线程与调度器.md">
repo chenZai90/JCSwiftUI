@@ -1,0 +1,329 @@
+# 第6章：多线程与调度器
+
+## 学习目标
+
+完成本章学习后，你将能够：
+- 理解Combine中的调度器(Scheduler)概念
+- 掌握subscribe(on:)和receive(on:)的区别
+- 学会在不同线程间切换
+- 理解主队列与后台队列的使用场景
+- 避免常见的线程问题
+
+## 6.1 调度器概述
+
+调度器(Scheduler)是Combine中用于控制代码执行时机和线程的协议。
+
+### 主要调度器类型
+
+| 调度器 | 说明 | 使用场景 |
+|--------|------|----------|
+| DispatchQueue.main | 主线程串行队列 | UI更新 |
+| DispatchQueue.global() | 全局并发队列 | 后台任务 |
+| OperationQueue | 基于NSOperation的队列 | 复杂任务管理 |
+| RunLoop.main | 主运行循环 | 兼容旧代码 |
+| ImmediateScheduler | 立即在当前线程执行 | 测试 |
+
+## 6.2 subscribe(on:) vs receive(on:)
+
+### subscribe(on:)
+
+指定订阅和发布操作发生的调度器：
+
+```swift
+// 数据加载在后台线程执行
+fetchData()
+    .subscribe(on: DispatchQueue.global(qos: .userInitiated))
+    .sink { value in
+        // 注意：这里还在后台线程
+        print("收到值: \(value)")
+    }
+    .store(in: &cancellables)
+```
+
+### receive(on:)
+
+指定接收值和完成事件的调度器：
+
+```swift
+fetchData()
+    .subscribe(on: DispatchQueue.global(qos: .userInitiated))
+    .receive(on: DispatchQueue.main) // 切回主线程
+    .sink { [weak self] value in
+        // 现在在主线程，可以安全更新UI
+        self?.updateUI(with: value)
+    }
+    .store(in: &cancellables)
+```
+
+### 完整示例
+
+```swift
+func loadUserData() {
+    isLoading = true
+    
+    fetchUserFromNetwork()
+        .subscribe(on: DispatchQueue.global(qos: .userInitiated))
+        .receive(on: DispatchQueue.main)
+        .sink(
+            receiveCompletion: { [weak self] completion in
+                self?.isLoading = false
+                // 在主线程处理完成
+            },
+            receiveValue: { [weak self] user in
+                // 在主线程更新UI
+                self?.user = user
+            }
+        )
+        .store(in: &cancellables)
+}
+```
+
+## 6.3 常用调度器详解
+
+### DispatchQueue
+
+```swift
+// 主线程
+DispatchQueue.main
+
+// 后台队列
+DispatchQueue.global(qos: .userInitiated)
+DispatchQueue.global(qos: .utility)
+DispatchQueue.global(qos: .background)
+
+// 自定义串行队列
+let serialQueue = DispatchQueue(label: "com.example.serial")
+
+// 自定义并发队列
+let concurrentQueue = DispatchQueue(label: "com.example.concurrent", attributes: .concurrent)
+```
+
+### QoS级别说明
+
+| QoS级别 | 说明 | 使用场景 |
+|---------|------|----------|
+| userInteractive | 用户交互相关 | 动画、UI更新 |
+| userInitiated | 用户发起的任务 | 立即需要的结果 |
+| utility | 需要一些时间的任务 | 下载、计算 |
+| background | 后台任务 | 同步、备份 |
+
+### OperationQueue
+
+```swift
+let queue = OperationQueue()
+queue.maxConcurrentOperationCount = 1 // 串行
+
+publisher
+    .subscribe(on: queue)
+    .receive(on: DispatchQueue.main)
+    .sink { value in
+        print(value)
+    }
+    .store(in: &cancellables)
+```
+
+### ImmediateScheduler
+
+```swift
+// 立即在当前线程执行，主要用于测试
+publisher
+    .subscribe(on: ImmediateScheduler.shared)
+    .sink { value in
+        print(value)
+    }
+    .store(in: &cancellables)
+```
+
+## 6.4 线程切换实战
+
+### 网络请求与UI更新
+
+```swift
+class ViewModel: ObservableObject {
+    @Published var data: [Item] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    
+    private var cancellables = Set<AnyCancellable>()
+    
+    func fetchData() {
+        isLoading = true
+        errorMessage = nil
+        
+        // 1. 网络请求在后台
+        // 2. 数据解析在后台
+        // 3. UI更新在主线程
+        URLSession.shared.dataTaskPublisher(for: apiURL)
+            .subscribe(on: DispatchQueue.global(qos: .userInitiated))
+            .map(\.data)
+            .decode(type: [Item].self, decoder: JSONDecoder())
+            .receive(on: DispatchQueue.main) // 切回主线程
+            .sink(
+                receiveCompletion: { [weak self] completion in
+                    self?.isLoading = false
+                    if case .failure(let error) = completion {
+                        self?.errorMessage = error.localizedDescription
+                    }
+                },
+                receiveValue: { [weak self] items in
+                    self?.data = items
+                }
+            )
+            .store(in: &cancellables)
+    }
+}
+```
+
+### 耗时计算
+
+```swift
+func performHeavyCalculation() {
+    Just(())
+        .subscribe(on: DispatchQueue.global(qos: .utility))
+        .map { _ -> Int in
+            // 耗时计算
+            var result = 0
+            for i in 0...1_000_000 {
+                result += i
+            }
+            return result
+        }
+        .receive(on: DispatchQueue.main)
+        .sink { [weak self] result in
+            self?.displayResult(result)
+        }
+        .store(in: &cancellables)
+}
+```
+
+## 6.5 常见问题与解决
+
+### 问题1：在后台线程更新UI
+
+```swift
+// ❌ 错误：在后台线程更新UI
+publisher
+    .sink { [weak self] value in
+        self?.label.text = "\(value)" // 崩溃或错误
+    }
+    .store(in: &cancellables)
+
+// ✅ 正确：切回主线程
+publisher
+    .receive(on: DispatchQueue.main)
+    .sink { [weak self] value in
+        self?.label.text = "\(value)" // 安全
+    }
+    .store(in: &cancellables)
+```
+
+### 问题2：多次线程切换
+
+```swift
+// ❌ 不推荐：不必要的多次切换
+publisher
+    .subscribe(on: DispatchQueue.global())
+    .map { /* 转换 */ }
+    .receive(on: DispatchQueue.main)
+    .map { /* 更多转换 */ } // 在主线程
+    .receive(on: DispatchQueue.global())
+    .map { /* 又一次转换 */ } // 又切回后台
+    .receive(on: DispatchQueue.main)
+    .sink { /* UI更新 */ }
+
+// ✅ 推荐：合理安排线程切换
+publisher
+    .subscribe(on: DispatchQueue.global())
+    .map { /* 所有后台转换 */ }
+    .map { /* 继续转换 */ }
+    .receive(on: DispatchQueue.main) // 只切回一次
+    .sink { /* UI更新 */ }
+```
+
+### 问题3：主线程阻塞
+
+```swift
+// ❌ 错误：在主线程执行耗时操作
+Just(())
+    .map { _ in
+        // 耗时操作...
+    }
+    .sink { /* ... */ }
+    .store(in: &cancellables)
+
+// ✅ 正确：在后台执行
+Just(())
+    .subscribe(on: DispatchQueue.global())
+    .map { _ in
+        // 耗时操作...
+    }
+    .receive(on: DispatchQueue.main)
+    .sink { /* ... */ }
+    .store(in: &cancellables)
+```
+
+## 6.6 高级：调度器组合
+
+### delay(for:scheduler:)
+
+```swift
+publisher
+    .delay(for: .seconds(2), scheduler: DispatchQueue.main)
+    .sink { value in
+        print("延迟后收到: \(value)")
+    }
+    .store(in: &cancellables)
+```
+
+### debounce/throttle
+
+```swift
+// debounce: 静默后发送
+searchText
+    .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+    .sink { query in
+        performSearch(query)
+    }
+    .store(in: &cancellables)
+
+// throttle: 限制频率
+searchText
+    .throttle(for: .milliseconds(300), scheduler: DispatchQueue.main, latest: true)
+    .sink { query in
+        performSearch(query)
+    }
+    .store(in: &cancellables)
+```
+
+### timeout
+
+```swift
+// 如果在5秒内没有完成，发送超时错误
+publisher
+    .timeout(.seconds(5), scheduler: DispatchQueue.main)
+    .sink(
+        receiveCompletion: { completion in
+            if case .failure(let error) = completion {
+                print("超时: \(error)")
+            }
+        },
+        receiveValue: { value in
+            print(value)
+        }
+    )
+    .store(in: &cancellables)
+```
+
+## 6.7 最佳实践
+
+1. **UI更新永远在主线程**：使用receive(on: DispatchQueue.main)
+2. **耗时操作在后台**：使用subscribe(on:)放后台
+3. **减少线程切换**：合理安排操作符位置
+4. **选择合适的QoS**：根据任务优先级选择
+5. **避免主线程阻塞**：永远不要在主线程执行耗时操作
+
+## 总结
+
+本章详细介绍了Combine中的调度器概念，包括subscribe(on:)和receive(on:)的区别，常用调度器的使用，以及线程切换的最佳实践。
+
+下一章我们将学习Combine的测试与调试技巧。

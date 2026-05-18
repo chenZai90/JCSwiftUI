@@ -1,0 +1,272 @@
+# 第10章：Combine与Swift Concurrency
+
+## 学习目标
+
+完成本章学习后，你将能够：
+- 理解Combine与async/await的关系
+- 掌握Publisher转换为AsyncSequence的方法
+- 学会将async函数包装为Publisher
+- 了解如何在项目中混合使用两者
+- 掌握迁移策略
+
+## 10.1 Combine vs Swift Concurrency
+
+### 各自的优势
+
+| 特性 | Combine | Swift Concurrency |
+|------|---------|-------------------|
+| 数据特性 | 多值流，持续更新 | 单值/元组，请求-响应 |
+| 操作符 | 丰富的操作符 | 需要使用AsyncAlgorithms |
+| 学习曲线 | 较陡 | 相对简单 |
+| UI集成 | @Published原生支持 | 配合@MainActor |
+| 错误处理 | 内建错误处理 | throws/do-catch |
+| 取消 | AnyCancellable | Task取消 |
+
+### 适用场景
+
+**Combine适用：**
+- UI状态绑定
+- 多值流（如通知、定时器）
+- 需要组合、过滤等复杂操作
+- 实时数据更新
+
+**Swift Concurrency适用：**
+- 一次性网络请求
+- 文件IO
+- 数据库操作
+- 简单的异步任务
+
+## 10.2 Publisher → AsyncSequence
+
+### values属性
+
+```swift
+let publisher = Timer.publish(every: 1, on: .main, in: .common)
+    .autoconnect()
+
+Task {
+    for await date in publisher.values {
+        print("时间: \(date)")
+    }
+}
+```
+
+### 处理错误
+
+```swift
+enum NetworkError: Error {
+    case timeout, serverError
+}
+
+func fetchData() async throws -> Data {
+    let publisher = URLSession.shared.dataTaskPublisher(for: url)
+        .map(\.data)
+        .mapError { NetworkError.serverError }
+    
+    for try await data in publisher.values {
+        return data
+    }
+    throw NetworkError.timeout
+}
+```
+
+### 包装为async函数
+
+```swift
+extension Publisher {
+    func first() async throws -> Output {
+        try await withCheckedThrowingContinuation { continuation in
+            var cancellable: AnyCancellable?
+            cancellable = self
+                .first()
+                .sink(
+                    receiveCompletion: { completion in
+                        switch completion {
+                        case .finished:
+                            break
+                        case .failure(let error):
+                            continuation.resume(throwing: error)
+                        }
+                    },
+                    receiveValue: { value in
+                        continuation.resume(returning: value)
+                    }
+                )
+            
+            // 保存cancellable避免被取消
+            // 实际使用中需要适当处理
+        }
+    }
+}
+```
+
+## 10.3 Async → Publisher
+
+### 使用Future包装
+
+```swift
+func fetchData() async throws -> Data {
+    // 异步操作
+    return Data()
+}
+
+func fetchDataAsPublisher() -> AnyPublisher<Data, Error> {
+    Future { promise in
+        Task {
+            do {
+                let data = try await fetchData()
+                promise(.success(data))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+    }
+    .eraseToAnyPublisher()
+}
+```
+
+### 使用AsyncStream
+
+```swift
+func makeTimerStream() -> AsyncStream<Date> {
+    AsyncStream { continuation in
+        let cancellable = Timer.publish(every: 1, on: .main, in: .common)
+            .autoconnect()
+            .sink { date in
+                continuation.yield(date)
+            }
+        
+        continuation.onTermination = { _ in
+            cancellable.cancel()
+        }
+    }
+}
+```
+
+## 10.4 混合使用实践
+
+### ViewModel中的结合使用
+
+```swift
+class ViewModel: ObservableObject {
+    @Published var items: [Item] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+    
+    private let service: DataServiceProtocol
+    private var cancellables = Set<AnyCancellable>()
+    
+    init(service: DataServiceProtocol = DataService()) {
+        self.service = service
+    }
+    
+    // 使用async/await
+    func loadData() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            items = try await service.fetchItems()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        
+        isLoading = false
+    }
+    
+    // 使用Combine
+    func observeUpdates() {
+        service.itemUpdates
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] update in
+                self?.applyUpdate(update)
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func applyUpdate(_ update: ItemUpdate) {
+        // 应用更新
+    }
+}
+```
+
+### Service层
+
+```swift
+protocol DataServiceProtocol {
+    func fetchItems() async throws -> [Item]
+    var itemUpdates: AnyPublisher<ItemUpdate, Never> { get }
+}
+
+class DataService: DataServiceProtocol {
+    private let updateSubject = PassthroughSubject<ItemUpdate, Never>()
+    var itemUpdates: AnyPublisher<ItemUpdate, Never> {
+        updateSubject.eraseToAnyPublisher()
+    }
+    
+    func fetchItems() async throws -> [Item] {
+        // 使用URLSession的async/await API
+        let (data, _) = try await URLSession.shared.data(from: url)
+        return try JSONDecoder().decode([Item].self, from: data)
+    }
+    
+    func sendUpdate(_ update: ItemUpdate) {
+        updateSubject.send(update)
+    }
+}
+```
+
+## 10.5 迁移策略
+
+### 逐步迁移
+
+```swift
+// 旧代码 - Combine
+func oldFetchData() -> AnyPublisher<Data, Error> {
+    URLSession.shared.dataTaskPublisher(for: url)
+        .map(\.data)
+        .eraseToAnyPublisher()
+}
+
+// 新代码 - async/await
+func newFetchData() async throws -> Data {
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return data
+}
+
+// 兼容层
+func fetchData() -> AnyPublisher<Data, Error> {
+    Future { promise in
+        Task {
+            do {
+                let data = try await newFetchData()
+                promise(.success(data))
+            } catch {
+                promise(.failure(error))
+            }
+        }
+    }
+    .eraseToAnyPublisher()
+}
+```
+
+### 选择时机
+
+1. **新代码**：优先使用Swift Concurrency
+2. **UI绑定**：继续使用Combine的@Published
+3. **复杂流处理**：继续使用Combine操作符
+4. **简单异步**：使用async/await
+
+## 10.6 最佳实践
+
+1. **不要过度设计**：选择适合的工具
+2. **保持一致性**：在同一模块内保持风格一致
+3. **利用两者优势**：Combine处理流，async/await处理单次任务
+4. **注意取消**：正确处理Task和AnyCancellable
+5. **测试覆盖**：确保两种方式都有测试
+
+## 总结
+
+本章介绍了Combine与Swift Concurrency的关系，以及如何在项目中混合使用两者。选择合适的工具可以让代码更简洁、更易维护。
+
+至此，我们已经完成了Combine响应式编程的全部学习！

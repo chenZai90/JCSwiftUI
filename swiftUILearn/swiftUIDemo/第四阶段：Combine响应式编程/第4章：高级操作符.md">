@@ -1,0 +1,325 @@
+# 第4章：高级操作符
+
+## 学习目标
+
+完成本章学习后，你将能够：
+- 掌握Combine中的高级操作符
+- 理解如何组合多个发布者
+- 熟练使用flatMap、switchToLatest等复杂操作符
+- 掌握缓冲区和背压控制
+
+## 4.1 操作符概述
+
+Combine的操作符可以分为几大类别：
+1. **转换操作符**：map、compactMap、flatMap等
+2. **组合操作符**：combineLatest、zip、merge等
+3. **过滤操作符**：filter、removeDuplicates、drop等
+4. **时间操作符**：debounce、throttle、delay等
+5. **收集操作符**：collect、reduce、scan等
+6. **错误操作符**：catch、tryMap、retry等
+
+## 4.2 转换操作符详解
+
+### map与tryMap
+
+```swift
+// map：简单转换
+let numbers = [1, 2, 3, 4].publisher
+numbers
+    .map { $0 * 2 }
+    .sink { print("map: \($0)") } // 2, 4, 6, 8
+
+// tryMap：可以抛出错误的转换
+let possibleNumbers = ["1", "2", "3", "four", "5"].publisher
+possibleNumbers
+    .tryMap { string -> Int in
+        guard let number = Int(string) else {
+            throw NSError(domain: "转换错误", code: -1)
+        }
+        return number
+    }
+    .sink(
+        receiveCompletion: { print("完成: \($0)") },
+        receiveValue: { print("tryMap: \($0)") }
+    )
+```
+
+### flatMap
+
+flatMap是Combine中最强大的操作符之一，它可以将每个值转换为新的发布者，然后将所有发布者的输出合并：
+
+```swift
+let searchText = PassthroughSubject<String, Never>()
+
+searchText
+    .flatMap { query -> AnyPublisher<[String], Never> in
+        // 模拟网络请求
+        return Just([query + " 结果1", query + " 结果2"])
+            .delay(for: .seconds(0.5), scheduler: DispatchQueue.main)
+            .eraseToAnyPublisher()
+    }
+    .sink { results in
+        print("搜索结果: \(results)")
+    }
+
+searchText.send("Swift")
+searchText.send("Combine") // 会触发两次搜索
+```
+
+### compactMap
+
+compactMap会过滤掉nil值：
+
+```swift
+let strings = ["1", "2", "three", "4", "five"].publisher
+strings
+    .compactMap { Int($0) }
+    .sink { print("compactMap: \($0)") } // 1, 2, 4
+```
+
+## 4.3 组合操作符详解
+
+### combineLatest
+
+combineLatest会在任一发布者发出新值时，结合所有发布者的最新值：
+
+```swift
+let username = PassthroughSubject<String, Never>()
+let password = PassthroughSubject<String, Never>()
+
+Publishers.CombineLatest(username, password)
+    .map { user, pass in
+        !user.isEmpty && pass.count >= 6
+    }
+    .sink { isValid in
+        print("表单有效: \(isValid)")
+    }
+
+username.send("test")
+password.send("123")     // false
+password.send("123456")  // true
+```
+
+### zip
+
+zip会严格配对两个发布者的值，只有当两个都有新值时才会发出：
+
+```swift
+let numbers = [1, 2, 3].publisher
+let letters = ["A", "B", "C", "D"].publisher
+
+numbers.zip(letters)
+    .sink { num, letter in
+        print("zip: \(num)-\(letter)")
+    }
+// 1-A, 2-B, 3-C (D被丢弃)
+```
+
+### merge
+
+merge会交织多个发布者的值：
+
+```swift
+let pub1 = [1, 3, 5].publisher
+let pub2 = [2, 4, 6].publisher
+
+pub1.merge(with: pub2)
+    .sink { print("merge: \($0)") }
+// 输出顺序取决于发布时机
+```
+
+## 4.4 时间操作符详解
+
+### debounce
+
+debounce会在静默一段时间后才发送最新值，适用于搜索框：
+
+```swift
+let searchInput = PassthroughSubject<String, Never>()
+
+searchInput
+    .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+    .sink { query in
+        print("执行搜索: \(query)")
+    }
+
+searchInput.send("S")
+searchInput.send("Sw")
+searchInput.send("Swi")
+searchInput.send("Swift") // 只有这个会在300ms后触发
+```
+
+### throttle
+
+throttle会限制发送频率：
+
+```swift
+let timer = PassthroughSubject<Date, Never>()
+
+timer
+    .throttle(for: .seconds(1), scheduler: DispatchQueue.main, latest: true)
+    .sink { date in
+        print("throttle: \(date)")
+    }
+```
+
+### delay
+
+delay会延迟所有值的发送：
+
+```swift
+let publisher = Just("Hello")
+    .delay(for: .seconds(2), scheduler: DispatchQueue.main)
+
+publisher
+    .sink { print("延迟后收到: \($0)") }
+```
+
+## 4.5 过滤操作符详解
+
+### filter
+
+```swift
+let numbers = [1, 2, 3, 4, 5, 6].publisher
+numbers
+    .filter { $0 % 2 == 0 }
+    .sink { print("filter: \($0)") } // 2, 4, 6
+```
+
+### removeDuplicates
+
+```swift
+let values = [1, 1, 2, 2, 3, 1, 1].publisher
+values
+    .removeDuplicates()
+    .sink { print("removeDuplicates: \($0)") } // 1, 2, 3, 1
+```
+
+### drop系列
+
+```swift
+let numbers = [1, 2, 3, 4, 5].publisher
+
+// dropFirst: 跳过前n个
+numbers
+    .dropFirst(2)
+    .sink { print("dropFirst: \($0)") } // 3, 4, 5
+
+// dropWhile: 跳过直到条件不满足
+numbers
+    .drop { $0 < 3 }
+    .sink { print("dropWhile: \($0)") } // 3, 4, 5
+```
+
+### prefix系列
+
+```swift
+let numbers = [1, 2, 3, 4, 5].publisher
+
+// prefix: 只取前n个
+numbers
+    .prefix(3)
+    .sink { print("prefix: \($0)") } // 1, 2, 3
+
+// prefixWhile: 取直到条件不满足
+numbers
+    .prefix { $0 < 4 }
+    .sink { print("prefixWhile: \($0)") } // 1, 2, 3
+```
+
+## 4.6 收集操作符详解
+
+### collect
+
+collect会将多个值收集为数组：
+
+```swift
+let numbers = [1, 2, 3, 4, 5].publisher
+
+// collect所有值
+numbers
+    .collect()
+    .sink { print("collect: \($0)") } // [1, 2, 3, 4, 5]
+
+// collect指定数量
+numbers
+    .collect(2)
+    .sink { print("collect(2): \($0)") } // [1, 2], [3, 4], [5]
+```
+
+### reduce
+
+reduce会累积所有值：
+
+```swift
+let numbers = [1, 2, 3, 4, 5].publisher
+numbers
+    .reduce(0, +)
+    .sink { print("reduce: \($0)") } // 15
+```
+
+### scan
+
+scan类似于reduce，但会发出每个中间结果：
+
+```swift
+let numbers = [1, 2, 3, 4, 5].publisher
+numbers
+    .scan(0, +)
+    .sink { print("scan: \($0)") } // 1, 3, 6, 10, 15
+```
+
+## 4.7 高级操作符：switchToLatest
+
+switchToLatest是处理网络请求的关键操作符，它会只保留最新的内部发布者，取消旧的：
+
+```swift
+let subject = PassthroughSubject<String, Never>()
+
+subject
+    .map { query in
+        // 模拟网络请求
+        return Just("\(query) 结果")
+            .delay(for: .seconds(1), scheduler: DispatchQueue.main)
+            .eraseToAnyPublisher()
+    }
+    .switchToLatest()
+    .sink { result in
+        print("switchToLatest: \(result)")
+    }
+
+subject.send("请求1")
+subject.send("请求2") // 只有请求2的结果会被处理
+```
+
+## 4.8 缓冲区和背压
+
+### buffer
+
+buffer可以缓冲一定数量的值：
+
+```swift
+let publisher = PassthroughSubject<Int, Never>()
+
+publisher
+    .buffer(size: 3, prefetch: .byRequest, whenFull: .dropOldest)
+    .sink { print("buffer: \($0)") }
+
+publisher.send(1)
+publisher.send(2)
+publisher.send(3)
+publisher.send(4) // 会丢弃1，保留2,3,4
+```
+
+## 4.9 操作符最佳实践
+
+1. **保持操作符链简洁**：不要过度使用操作符
+2. **合理使用eraseToAnyPublisher**：隐藏复杂类型
+3. **注意线程切换**：在正确的位置使用receive(on:)
+4. **使用share()避免重复订阅**：当多个订阅者需要共享数据时
+
+## 总结
+
+本章详细介绍了Combine中的各类高级操作符，包括转换、组合、过滤、时间、收集等操作符。掌握这些操作符是使用Combine的关键。
+
+下一章我们将学习错误处理与恢复机制。
